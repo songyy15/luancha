@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>路安查 · 施工现场安全隐患识别</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #1a1a1a; min-height: 100vh; }
+
+  header { background: #1a3a5c; color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+  header span { font-size: 13px; opacity: 0.7; }
+  .badge { background: #e8a020; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px; }
+
+  /* Upload zone */
+  .upload-zone { background: #fff; border: 2px dashed #c8d8e8; border-radius: 12px; padding: 40px 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: #1a3a5c; background: #f0f6ff; }
+  .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 48px; margin-bottom: 12px; }
+  .upload-zone p { color: #666; font-size: 14px; line-height: 1.8; }
+  .upload-zone strong { color: #1a3a5c; }
+
+  /* Preview */
+  #preview-wrap { display: none; margin-top: 16px; position: relative; }
+  #preview-img { width: 100%; max-height: 420px; object-fit: contain; border-radius: 8px; background: #000; }
+  .change-btn { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+
+  /* Action */
+  .action-bar { display: flex; gap: 12px; margin-top: 16px; }
+  #analyze-btn { flex: 1; background: #1a3a5c; color: #fff; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  #analyze-btn:hover:not(:disabled) { background: #243f6a; }
+  #analyze-btn:disabled { background: #8aa0b5; cursor: not-allowed; }
+
+  /* Loading */
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Result */
+  #result { display: none; margin-top: 24px; }
+
+  .result-header { background: #1a3a5c; color: #fff; border-radius: 10px 10px 0 0; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .result-header h2 { font-size: 16px; }
+  .scene-tag { background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 12px; font-size: 13px; }
+
+  .result-body { background: #fff; border-radius: 0 0 10px 10px; padding: 20px; }
+
+  /* Summary bar */
+  .summary-bar { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat { background: #f5f7fa; border-radius: 8px; padding: 12px 20px; flex: 1; min-width: 120px; text-align: center; }
+  .stat .num { font-size: 28px; font-weight: 700; }
+  .stat .label { font-size: 12px; color: #666; margin-top: 2px; }
+  .stat.high .num { color: #d32f2f; }
+  .stat.mid .num { color: #e67e22; }
+  .stat.warn .num { color: #1976d2; }
+
+  /* Hazard cards */
+  .hazard-card { border-left: 4px solid #ccc; background: #fafafa; border-radius: 0 8px 8px 0; padding: 14px 16px; margin-bottom: 12px; }
+  .hazard-card.high { border-color: #d32f2f; }
+  .hazard-card.mid { border-color: #e67e22; }
+  .hazard-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .risk-chip { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+  .risk-chip.high { background: #fde8e8; color: #d32f2f; }
+  .risk-chip.mid { background: #fef3e2; color: #e67e22; }
+  .cat-chip { font-size: 12px; background: #e8f0fe; color: #1a3a5c; padding: 2px 8px; border-radius: 10px; }
+  .hazard-desc { font-size: 14px; color: #222; font-weight: 500; }
+  .hazard-meta { font-size: 12px; color: #888; margin-top: 6px; display: flex; flex-wrap: wrap; gap: 12px; }
+  .hazard-meta span { display: flex; align-items: center; gap: 4px; }
+
+  /* Unconfirmed */
+  .unconfirmed-section { margin-top: 16px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; padding: 14px 16px; }
+  .unconfirmed-section h3 { font-size: 13px; color: #856404; margin-bottom: 8px; }
+  .unconfirmed-section li { font-size: 13px; color: #6b5e00; margin-left: 16px; line-height: 1.8; }
+
+  /* Overall */
+  .overall-section { margin-top: 16px; background: #f0f6ff; border-radius: 8px; padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
+  .overall-section .icon { font-size: 20px; }
+  .overall-section p { font-size: 14px; color: #1a3a5c; font-weight: 500; }
+
+  /* No hazards */
+  .no-hazards { text-align: center; padding: 30px; color: #27ae60; }
+  .no-hazards .icon { font-size: 48px; }
+  .no-hazards p { margin-top: 8px; font-size: 15px; }
+
+  /* Error */
+  .error-box { background: #fff0f0; border: 1px solid #ffb3b3; border-radius: 8px; padding: 16px; color: #c0392b; font-size: 14px; margin-top: 16px; }
+
+  .section-title { font-size: 14px; font-weight: 600; color: #444; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #eee; }
+
+  footer { text-align: center; color: #aaa; font-size: 12px; padding: 24px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:24px">🛡️</span>
+  <div>
+    <h1>路安查<span class="badge">v1.0</span></h1>
+    <span>陕西高速机械化工程有限公司 · 施工现场安全隐患AI识别</span>
+  </div>
+</header>
+
+<main>
+  <div class="upload-zone" id="upload-zone">
+    <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp,image/gif">
+    <div class="upload-icon">📷</div>
+    <p><strong>点击上传</strong>或拖拽施工现场照片到此处</p>
+    <p style="margin-top:6px;color:#aaa;font-size:12px">支持 JPG / PNG / WebP，最大 20MB</p>
+  </div>
+
+  <div id="preview-wrap">
+    <img id="preview-img" alt="预览图片">
+    <button class="change-btn" id="change-btn">更换图片</button>
+  </div>
+
+  <div class="action-bar" id="action-bar" style="display:none">
+    <button id="analyze-btn" disabled>请先上传图片</button>
+  </div>
+
+  <div id="result"></div>
+  <div id="error" class="error-box" style="display:none"></div>
+</main>
+
+<footer>路安查 v1.0 · 数据来源：公司内部专项检查通报（2026年1-4月）· 识别结果仅供参考，最终判定以人工复核为准</footer>
+
+<script>
+const uploadZone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('file-input');
+const previewWrap = document.getElementById('preview-wrap');
+const previewImg = document.getElementById('preview-img');
+const changeBtn = document.getElementById('change-btn');
+const actionBar = document.getElementById('action-bar');
+const analyzeBtn = document.getElementById('analyze-btn');
+const resultEl = document.getElementById('result');
+const errorEl = document.getElementById('error');
+
+let selectedFile = null;
+
+function setFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  selectedFile = file;
+  const url = URL.createObjectURL(file);
+  previewImg.src = url;
+  uploadZone.style.display = 'none';
+  previewWrap.style.display = 'block';
+  actionBar.style.display = 'flex';
+  analyzeBtn.disabled = false;
+  analyzeBtn.textContent = '开始识别隐患';
+  resultEl.style.display = 'none';
+  resultEl.innerHTML = '';
+  errorEl.style.display = 'none';
+}
+
+fileInput.addEventListener('change', e => setFile(e.target.files[0]));
+
+changeBtn.addEventListener('click', () => {
+  uploadZone.style.display = 'block';
+  previewWrap.style.display = 'none';
+  actionBar.style.display = 'none';
+  resultEl.style.display = 'none';
+  errorEl.style.display = 'none';
+  selectedFile = null;
+  fileInput.value = '';
+});
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  setFile(e.dataTransfer.files[0]);
+});
+
+analyzeBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  analyzeBtn.disabled = true;
+  analyzeBtn.innerHTML = '<span class="spinner"></span>AI 识别中，请稍候…';
+  resultEl.style.display = 'none';
+  errorEl.style.display = 'none';
+
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+
+  try {
+    const res = await fetch('/analyze', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.detail || '服务器错误');
+    }
+
+    renderResult(data);
+  } catch (e) {
+    errorEl.textContent = '识别失败：' + e.message;
+    errorEl.style.display = 'block';
+  } finally {
+    analyzeBtn.disabled = false;
+    analyzeBtn.textContent = '重新识别';
+  }
+});
+
+function renderResult(data) {
+  const hazards = data.hazards || [];
+  const unconfirmed = data.unconfirmed || [];
+  const highCount = hazards.filter(h => h.risk_level === '高').length;
+  const midCount = hazards.filter(h => h.risk_level === '中').length;
+
+  let html = `
+    <div class="result-header">
+      <h2>识别结果</h2>
+      <span class="scene-tag">📍 ${esc(data.scene || '未知场景')}</span>
+    </div>
+    <div class="result-body">
+      <div class="summary-bar">
+        <div class="stat high"><div class="num">${highCount}</div><div class="label">高风险隐患</div></div>
+        <div class="stat mid"><div class="num">${midCount}</div><div class="label">中风险隐患</div></div>
+        <div class="stat warn"><div class="num">${unconfirmed.length}</div><div class="label">需人工复核</div></div>
+      </div>
+  `;
+
+  if (hazards.length === 0) {
+    html += `<div class="no-hazards"><div class="icon">✅</div><p>未识别到明确隐患，请结合现场实际情况判断</p></div>`;
+  } else {
+    html += `<div class="section-title">识别到的隐患（${hazards.length}项）</div>`;
+    hazards.forEach(h => {
+      const cls = h.risk_level === '高' ? 'high' : 'mid';
+      html += `
+        <div class="hazard-card ${cls}">
+          <div class="hazard-card-top">
+            <span class="risk-chip ${cls}">${esc(h.risk_level)}风险</span>
+            <span class="cat-chip">${esc(h.category)}</span>
+          </div>
+          <div class="hazard-desc">${esc(h.description)}</div>
+          <div class="hazard-meta">
+            <span>🔧 整改：${esc(h.rectification)}</span>
+            <span>📋 依据：${esc(h.basis)}</span>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  if (unconfirmed.length > 0) {
+    html += `
+      <div class="unconfirmed-section">
+        <h3>⚠️ 以下情况不确定，建议人工复核</h3>
+        <ul>${unconfirmed.map(u => `<li>${esc(u)}</li>`).join('')}</ul>
+      </div>
+    `;
+  }
+
+  if (data.overall) {
+    html += `
+      <div class="overall-section">
+        <span class="icon">📊</span>
+        <p>${esc(data.overall)}</p>
+      </div>
+    `;
+  }
+
+  html += `</div>`;
+  resultEl.innerHTML = html;
+  resultEl.style.display = 'block';
+  resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
