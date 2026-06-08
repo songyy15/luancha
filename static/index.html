@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>路安查 · 施工现场安全隐患识别</title>
+<title>路安查 v2.0 · 施工现场安全隐患识别</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #1a1a1a; min-height: 100vh; }
@@ -11,7 +11,7 @@
   header { background: #1a3a5c; color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
   header h1 { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
   header span { font-size: 13px; opacity: 0.7; }
-  .badge { background: #e8a020; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+  .badge { background: #e74c3c; color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
 
   main { max-width: 860px; margin: 0 auto; padding: 24px 16px; }
 
@@ -49,7 +49,7 @@
 
   /* Summary bar */
   .summary-bar { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-  .stat { background: #f5f7fa; border-radius: 8px; padding: 12px 20px; flex: 1; min-width: 120px; text-align: center; }
+  .stat { background: #f5f7fa; border-radius: 8px; padding: 12px 20px; flex: 1; min-width: 100px; text-align: center; }
   .stat .num { font-size: 28px; font-weight: 700; }
   .stat .label { font-size: 12px; color: #666; margin-top: 2px; }
   .stat.high .num { color: #d32f2f; }
@@ -69,10 +69,15 @@
   .hazard-meta { font-size: 12px; color: #888; margin-top: 6px; display: flex; flex-wrap: wrap; gap: 12px; }
   .hazard-meta span { display: flex; align-items: center; gap: 4px; }
 
-  /* Unconfirmed */
+  /* Unconfirmed - updated for v2.0 object format */
   .unconfirmed-section { margin-top: 16px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; padding: 14px 16px; }
-  .unconfirmed-section h3 { font-size: 13px; color: #856404; margin-bottom: 8px; }
-  .unconfirmed-section li { font-size: 13px; color: #6b5e00; margin-left: 16px; line-height: 1.8; }
+  .unconfirmed-section h3 { font-size: 13px; color: #856404; margin-bottom: 10px; }
+  .unconfirmed-item { background: #fffef5; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
+  .unconfirmed-item .obs { font-size: 13px; color: #5a4e00; line-height: 1.6; margin-bottom: 4px; }
+  .unconfirmed-item .obs::before { content: "📌 "; }
+  .unconfirmed-item .meta { font-size: 12px; color: #888; display: flex; gap: 12px; }
+  .unconfirmed-item .sug { color: #e67e22; font-weight: 500; }
+  .unconfirmed-item .sug::before { content: "💡 建议: "; }
 
   /* Overall */
   .overall-section { margin-top: 16px; background: #f0f6ff; border-radius: 8px; padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
@@ -89,7 +94,7 @@
 
   .section-title { font-size: 14px; font-weight: 600; color: #444; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #eee; }
 
-  footer { text-align: center; color: #aaa; font-size: 12px; padding: 24px; }
+  footer { text-align: center; color: #aaa; font-size: 12px; padding: 24px; line-height: 1.8; }
 </style>
 </head>
 <body>
@@ -97,7 +102,7 @@
 <header>
   <span style="font-size:24px">🛡️</span>
   <div>
-    <h1>路安查<span class="badge">v1.0</span></h1>
+    <h1>路安查<span class="badge">v2.0</span></h1>
     <span>陕西高速机械化工程有限公司 · 施工现场安全隐患AI识别</span>
   </div>
 </header>
@@ -123,7 +128,7 @@
   <div id="error" class="error-box" style="display:none"></div>
 </main>
 
-<footer>路安查 v1.0 · 数据来源：公司内部专项检查通报（2026年1-4月）· 识别结果仅供参考，最终判定以人工复核为准</footer>
+<footer>路安查 v2.0 · 数据来源：公司内部专项检查通报（2026年1-6月）· 识别结果仅供参考，最终判定以人工复核为准</footer>
 
 <script>
 const uploadZone = document.getElementById('upload-zone');
@@ -147,7 +152,7 @@ function setFile(file) {
   previewWrap.style.display = 'block';
   actionBar.style.display = 'flex';
   analyzeBtn.disabled = false;
-  analyzeBtn.textContent = '开始识别隐患';
+  analyzeBtn.textContent = '🔍 开始识别隐患';
   resultEl.style.display = 'none';
   resultEl.innerHTML = '';
   errorEl.style.display = 'none';
@@ -173,7 +178,6 @@ uploadZone.addEventListener('drop', e => {
   setFile(e.dataTransfer.files[0]);
 });
 
-// 压缩图片到最大边1280px，减少传输和处理时间
 function compressImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -247,7 +251,7 @@ function renderResult(data) {
   if (hazards.length === 0) {
     html += `<div class="no-hazards"><div class="icon">✅</div><p>未识别到明确隐患，请结合现场实际情况判断</p></div>`;
   } else {
-    html += `<div class="section-title">识别到的隐患（${hazards.length}项）</div>`;
+    html += `<div class="section-title">识别到的隐患（${hazards.length}项，已扩展至12类判定标准）</div>`;
     hazards.forEach(h => {
       const cls = h.risk_level === '高' ? 'high' : 'mid';
       html += `
@@ -259,20 +263,35 @@ function renderResult(data) {
           <div class="hazard-desc">${esc(h.description)}</div>
           <div class="hazard-meta">
             <span>🔧 整改：${esc(h.rectification)}</span>
-            <span>📋 依据：${esc(h.basis)}</span>
           </div>
         </div>
       `;
     });
   }
 
+  // v2.0: unconfirmed now supports both object and string format
   if (unconfirmed.length > 0) {
     html += `
       <div class="unconfirmed-section">
-        <h3>⚠️ 以下情况不确定，建议人工复核</h3>
-        <ul>${unconfirmed.map(u => `<li>${esc(u)}</li>`).join('')}</ul>
-      </div>
+        <h3>🤔 以下情况不确定，建议人工复核（${unconfirmed.length}项）</h3>
     `;
+    unconfirmed.forEach(u => {
+      if (typeof u === 'string') {
+        // 兼容旧格式
+        html += `<div class="unconfirmed-item"><div class="obs">${esc(u)}</div></div>`;
+      } else {
+        html += `
+          <div class="unconfirmed-item">
+            <div class="obs">${esc(u.observation || '')}</div>
+            <div class="meta">
+              ${u.category ? `<span>📂 ${esc(u.category)}</span>` : ''}
+              ${u.suggestion ? `<span class="sug">${esc(u.suggestion)}</span>` : ''}
+            </div>
+          </div>
+        `;
+      }
+    });
+    html += `</div>`;
   }
 
   if (data.overall) {
