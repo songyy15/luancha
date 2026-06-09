@@ -249,28 +249,39 @@ function renderResult(data) {
       </div>
   `;
 
-  if (hazards.length === 0) {
-    html += `<div class="no-hazards"><div class="icon">✅</div><p>未识别到明确隐患，请结合现场实际情况判断</p></div>`;
-  } else {
-    html += `<div class="section-title">识别到的隐患（${hazards.length}项）</div>`;
-    hazards.forEach(h => {
-      const cls = h.risk_level === '高' ? 'high' : 'mid';
-      html += `
-        <div class="hazard-card ${cls}">
-          <div class="hazard-card-top">
-            <span class="risk-chip ${cls}">${esc(h.risk_level)}风险</span>
-            <span class="cat-chip">${esc(h.category)}</span>
-          </div>
-          <div class="hazard-desc">${esc(h.description)}</div>
-          <div class="hazard-meta">
-            <span>🔧 整改：${esc(h.rectification)}</span>
-          </div>
-        </div>
-      `;
-    });
+  // 推理摘要
+  if (data.reasoning_summary) {
+    html += `<div class="overall-section" style="background:#f0f7ff;border:1px solid #91caff;">
+      <span class="icon">🧠</span>
+      <p style="color:#1677ff;">${esc(data.reasoning_summary)}</p>
+    </div>`;
   }
 
-  // v2.2: discoveries - 自由发现不在13类内的隐患
+  if (hazards.length === 0 && discoveries.length === 0) {
+    html += `<div class="no-hazards"><div class="icon">✅</div><p>未识别到明确隐患，请结合现场实际情况判断</p></div>`;
+  } else {
+    if (hazards.length > 0) {
+      html += `<div class="section-title">识别到的隐患（${hazards.length}项）</div>`;
+      hazards.forEach(h => {
+        const cls = h.risk_level === '高' ? 'high' : 'mid';
+        html += `
+          <div class="hazard-card ${cls}">
+            <div class="hazard-card-top">
+              <span class="risk-chip ${cls}">${esc(h.risk_level)}风险</span>
+              <span class="cat-chip">${esc(h.category)}</span>
+            </div>
+            <div class="hazard-desc">${esc(h.description)}</div>
+            ${h.reasoning ? `<div class="hazard-meta" style="color:#1677ff;"><span>💡 ${esc(h.reasoning)}</span></div>` : ''}
+            <div class="hazard-meta">
+              <span>🔧 整改：${esc(h.rectification)}</span>
+            </div>
+          </div>
+        `;
+      });
+    }
+  }
+
+  // v2.2: discoveries
   if (discoveries.length > 0) {
     html += `
       <div class="unconfirmed-section" style="background:#f0f7ff;border-color:#91caff;">
@@ -281,7 +292,8 @@ function renderResult(data) {
       html += `
         <div class="unconfirmed-item" style="background:#fafcff;">
           <div class="obs" style="font-weight:500;">${esc(d.finding || '')}</div>
-          <div class="meta">
+          ${d.reasoning ? `<div class="meta" style="color:#1677ff;margin-top:4px;">💡 ${esc(d.reasoning)}</div>` : ''}
+          <div class="meta" style="margin-top:4px;">
             <span style="color:${cls === 'high' ? '#d32f2f' : '#e67e22'};font-weight:600;">${esc(d.risk_level)}风险</span>
             ${d.suggestion ? `<span class="sug" style="color:#1677ff;">${esc(d.suggestion)}</span>` : ''}
           </div>
@@ -291,7 +303,7 @@ function renderResult(data) {
     html += `</div>`;
   }
 
-  // v2.0: unconfirmed now supports both object and string format
+  // v2.0: unconfirmed
   if (unconfirmed.length > 0) {
     html += `
       <div class="unconfirmed-section">
@@ -299,7 +311,6 @@ function renderResult(data) {
     `;
     unconfirmed.forEach(u => {
       if (typeof u === 'string') {
-        // 兼容旧格式
         html += `<div class="unconfirmed-item"><div class="obs">${esc(u)}</div></div>`;
       } else {
         html += `
@@ -314,6 +325,16 @@ function renderResult(data) {
       }
     });
     html += `</div>`;
+  }
+
+  // 交叉复核
+  if (data.cross_check) {
+    html += `
+      <div class="overall-section" style="background:#f6ffed;border:1px solid #b7eb8f;">
+        <span class="icon">✅</span>
+        <p style="color:#52c41a;">${esc(data.cross_check)}</p>
+      </div>
+    `;
   }
 
   if (data.overall) {
