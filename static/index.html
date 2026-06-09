@@ -232,8 +232,9 @@ analyzeBtn.addEventListener('click', async () => {
 function renderResult(data) {
   const hazards = data.hazards || [];
   const unconfirmed = data.unconfirmed || [];
-  const highCount = hazards.filter(h => h.risk_level === '高').length;
-  const midCount = hazards.filter(h => h.risk_level === '中').length;
+  const discoveries = data.discoveries || [];
+  const highCount = hazards.filter(h => h.risk_level === '高').length + discoveries.filter(d => d.risk_level === '高').length;
+  const midCount = hazards.filter(h => h.risk_level === '中').length + discoveries.filter(d => d.risk_level === '中').length;
 
   let html = `
     <div class="result-header">
@@ -251,7 +252,7 @@ function renderResult(data) {
   if (hazards.length === 0) {
     html += `<div class="no-hazards"><div class="icon">✅</div><p>未识别到明确隐患，请结合现场实际情况判断</p></div>`;
   } else {
-    html += `<div class="section-title">识别到的隐患（${hazards.length}项，已扩展至12类判定标准）</div>`;
+    html += `<div class="section-title">识别到的隐患（${hazards.length}项）</div>`;
     hazards.forEach(h => {
       const cls = h.risk_level === '高' ? 'high' : 'mid';
       html += `
@@ -267,6 +268,27 @@ function renderResult(data) {
         </div>
       `;
     });
+  }
+
+  // v2.2: discoveries - 自由发现不在13类内的隐患
+  if (discoveries.length > 0) {
+    html += `
+      <div class="unconfirmed-section" style="background:#f0f7ff;border-color:#91caff;">
+        <h3 style="color:#1677ff;">🔍 自由发现（${discoveries.length}项，超出标准分类但值得关注）</h3>
+    `;
+    discoveries.forEach(d => {
+      const cls = d.risk_level === '高' ? 'high' : 'mid';
+      html += `
+        <div class="unconfirmed-item" style="background:#fafcff;">
+          <div class="obs" style="font-weight:500;">${esc(d.finding || '')}</div>
+          <div class="meta">
+            <span style="color:${cls === 'high' ? '#d32f2f' : '#e67e22'};font-weight:600;">${esc(d.risk_level)}风险</span>
+            ${d.suggestion ? `<span class="sug" style="color:#1677ff;">${esc(d.suggestion)}</span>` : ''}
+          </div>
+        </div>
+      `;
+    });
+    html += `</div>`;
   }
 
   // v2.0: unconfirmed now supports both object and string format
